@@ -30,7 +30,7 @@ body{min-height:100vh;touch-action:manipulation}
 <main id="app">
 <div id="hud"><div class="hudbox"><small>LV</small><b id="lv">1</b></div><div class="hudbox"><small>HP</small><b id="hp">40/40</b></div><div class="hudbox"><small>ATK</small><b id="atk">8</b></div><div class="hudbox"><small>GOLD</small><b id="gold">0G</b></div></div>
 <section id="gameWrap">
-<canvas id="game"></canvas><div id="topMsg">ゆっくり動かして敵に近づこう</div>
+<canvas id="game"></canvas><div id="topMsg">上下で前後、左右でゆっくり旋回</div>
 <div id="enemyBar"><div class="ename" id="enemyName"></div><div class="bar"><div id="enemyFill" class="fill"></div></div></div>
 <div id="flash"></div><div id="floatLayer"></div>
 <div id="joystick"><div id="stick"></div></div>
@@ -38,56 +38,50 @@ body{min-height:100vh;touch-action:manipulation}
 <button id="healBtn" type="button">🌿 回復<br><span id="herbs">3</span></button>
 <button id="attackBtn" type="button">⚔️ 攻撃</button>
 </section>
-<section id="panel"><div id="expRow"><span>EXP</span><div class="expbar"><div id="expFill" class="expfill"></div></div><span id="expText">0/30</span></div><div id="tips">移動は前よりゆっくり・滑らかに調整。攻撃は剣を振るモーション、敵のひるみ・ノックバック・攻撃予備動作・画面揺れ付き。音楽はiPhoneの仕様上、ボタンを押してONにすると開始します。拡大ズームも抑制しています。</div><button id="reset" type="button">最初からやり直す</button></section>
+<section id="panel"><div id="expRow"><span>EXP</span><div class="expbar"><div id="expFill" class="expfill"></div></div><span id="expText">0/30</span></div><div id="tips">操作を変更しました。スティック上/下で前後移動、左/右でその場でもゆっくり旋回できます。少しだけ倒すと細かく曲がり、強く倒すと大きく曲がるので狙った方向を向きやすくしています。攻撃モーション・敵のひるみ・BGM・ズーム抑制はそのままです。</div><button id="reset" type="button">最初からやり直す</button></section>
 </main>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js';
 const $=id=>document.getElementById(id),SAVE='kantan_yusha_3d_v2';
 let state={lv:1,xp:0,gold:0,hp:40,maxHp:40,atk:8,herbs:3,kills:0};try{const s=JSON.parse(localStorage.getItem(SAVE));if(s)state={...state,...s}}catch{}
 const needXp=()=>30+(state.lv-1)*22;const save=()=>localStorage.setItem(SAVE,JSON.stringify(state));
-function toast(t){$('topMsg').textContent=t;clearTimeout(toast.t);toast.t=setTimeout(()=>$('topMsg').textContent='ゆっくり動かして敵に近づこう',1700)}
+function toast(t){$('topMsg').textContent=t;clearTimeout(toast.t);toast.t=setTimeout(()=>$('topMsg').textContent='上下で前後、左右でゆっくり旋回',1700)}
 function floatText(t,c=''){const d=document.createElement('div');d.className='float '+c;d.textContent=t;$('floatLayer').appendChild(d);setTimeout(()=>d.remove(),800)}
 function levelCheck(){while(state.xp>=needXp()){state.xp-=needXp();state.lv++;state.maxHp+=12+Math.floor(state.lv*1.5);state.atk+=3+Math.floor(state.lv/3);state.hp=state.maxHp;toast(`🎉 LEVEL ${state.lv}!`);sfxLevel()}}
 function hud(){ $('lv').textContent=state.lv;$('hp').textContent=`${state.hp}/${state.maxHp}`;$('atk').textContent=state.atk;$('gold').textContent=state.gold+'G';$('herbs').textContent=state.herbs;$('expText').textContent=`${state.xp}/${needXp()}`;$('expFill').style.width=Math.min(100,state.xp/needXp()*100)+'%' }
-
 const renderer=new THREE.WebGLRenderer({canvas:$('game'),antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,1.8));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x96c9e3);scene.fog=new THREE.Fog(0x96c9e3,24,50);
 const camera=new THREE.PerspectiveCamera(54,1,.1,100);const hemi=new THREE.HemisphereLight(0xe9f6ff,0x4a5c32,1.8);scene.add(hemi);const sun=new THREE.DirectionalLight(0xfff1d7,2.4);sun.position.set(8,15,7);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);scene.add(sun);
 const ground=new THREE.Mesh(new THREE.PlaneGeometry(70,70),new THREE.MeshStandardMaterial({color:0x648f47,roughness:1}));ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene.add(ground);
 function mat(c,r=.78){return new THREE.MeshStandardMaterial({color:c,roughness:r})}
 for(let i=0;i<32;i++){const g=new THREE.Group();const t=new THREE.Mesh(new THREE.CylinderGeometry(.16,.24,1.3,7),mat(0x6b4628));t.position.y=.65;g.add(t);const c=new THREE.Mesh(new THREE.ConeGeometry(.72,1.7,8),mat(0x2d7337));c.position.y=1.75;g.add(c);const a=Math.random()*Math.PI*2,r=18+Math.random()*14;g.position.set(Math.cos(a)*r,0,Math.sin(a)*r);scene.add(g)}
-
 function limb(w,h,d,c){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat(c));m.castShadow=true;return m}
 const player=new THREE.Group(),torso=limb(.72,.9,.38,0x2f5db9);torso.position.y=1.25;player.add(torso);const head=new THREE.Mesh(new THREE.SphereGeometry(.31,16,12),mat(0xe8bb91));head.position.y=1.92;head.castShadow=true;player.add(head);
 const legL=limb(.22,.72,.24,0x28314c),legR=legL.clone();legL.position.set(-.2,.52,0);legR.position.set(.2,.52,0);player.add(legL,legR);
 const armL=limb(.18,.68,.2,0xe8bb91),armR=armL.clone();armL.position.set(-.46,1.3,0);armR.position.set(.46,1.3,0);player.add(armL,armR);
 const swordPivot=new THREE.Group();swordPivot.position.set(.47,1.45,0);player.add(swordPivot);const grip=limb(.12,.42,.12,0x5c3d22);grip.position.y=-.18;swordPivot.add(grip);const blade=new THREE.Mesh(new THREE.BoxGeometry(.12,.9,.09),new THREE.MeshStandardMaterial({color:0xe9eef4,metalness:.65,roughness:.25}));blade.position.y=.44;blade.castShadow=true;swordPivot.add(blade);swordPivot.rotation.z=-.2;scene.add(player);
-
 const enemies=[];function createGoblin(){const lv=Math.max(1,state.lv+Math.floor(Math.random()*2)-1),maxHp=22+lv*8,g=new THREE.Group();const body=limb(.72,.82,.4,0x6f8a3c);body.position.y=1.02;g.add(body);const h=new THREE.Mesh(new THREE.SphereGeometry(.34,14,10),mat(0x8ca84d));h.position.y=1.65;h.castShadow=true;g.add(h);const l1=limb(.2,.6,.22,0x46572e),l2=l1.clone();l1.position.set(-.2,.42,0);l2.position.set(.2,.42,0);g.add(l1,l2);const clubPivot=new THREE.Group();clubPivot.position.set(.47,1.18,0);const club=limb(.15,.8,.15,0x5d3c22);club.position.y=.32;clubPivot.add(club);g.add(clubPivot);let p;do{p=new THREE.Vector3((Math.random()-.5)*34,0,(Math.random()-.5)*34)}while(p.length()<6);g.position.copy(p);scene.add(g);enemies.push({group:g,hp:maxHp,maxHp,atk:3+lv*1.25,xp:12+lv*3,gold:12+lv*4,speed:.72+Math.random()*.12,hitCd:0,wind:0,clubPivot,dead:false,flash:0,knock:new THREE.Vector3()})}
 for(let i=0;i<8;i++)createGoblin();
-
-let joy={x:0,y:0},joyId=null,targetVel=new THREE.Vector3(),moveVel=new THREE.Vector3();const joystick=$('joystick'),stick=$('stick');
+let joy={x:0,y:0},joyId=null;const joystick=$('joystick'),stick=$('stick');
 function setJoy(e){const r=joystick.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let dx=e.clientX-cx,dy=e.clientY-cy;const max=r.width*.30,len=Math.hypot(dx,dy)||1;if(len>max){dx=dx/len*max;dy=dy/len*max}joy.x=dx/max;joy.y=dy/max;stick.style.transform=`translate(${dx}px,${dy}px)`}
 joystick.addEventListener('pointerdown',e=>{joyId=e.pointerId;joystick.setPointerCapture(e.pointerId);setJoy(e)});joystick.addEventListener('pointermove',e=>{if(e.pointerId===joyId)setJoy(e)});function endJoy(e){if(e.pointerId!==joyId)return;joyId=null;joy.x=joy.y=0;stick.style.transform='translate(0,0)'}joystick.addEventListener('pointerup',endJoy);joystick.addEventListener('pointercancel',endJoy);
-
 let attacking=false,attackT=0,cool=0,camShake=0,lastAttackHit=false;
 $('attackBtn').addEventListener('pointerdown',()=>{initAudio();if(cool>0)return;attacking=true;attackT=.34;cool=.42;lastAttackHit=false;sfxSwing()});
 function attackHit(){if(lastAttackHit)return;lastAttackHit=true;const f=new THREE.Vector3(0,0,-1).applyQuaternion(player.quaternion);let best=null,dist=2.15;for(const e of enemies){if(e.dead)continue;const to=e.group.position.clone().sub(player.position),d=to.length();if(d<dist&&f.dot(to.clone().normalize())>.38){best=e;dist=d}}if(!best)return;const crit=Math.random()<.14,dmg=Math.round(state.atk*(.88+Math.random()*.28)*(crit?1.7:1));best.hp-=dmg;best.flash=.12;best.knock.copy(f).multiplyScalar(3.2);camShake=.12;floatText((crit?'会心! ':'')+dmg+' DAMAGE');sfxHit();if(best.hp<=0)defeat(best)}
 function defeat(e){e.dead=true;scene.remove(e.group);const i=enemies.indexOf(e);if(i>=0)enemies.splice(i,1);state.xp+=e.xp;state.gold+=e.gold;state.kills++;if(state.kills%5===0)state.herbs++;floatText(`+${e.xp} EXP  +${e.gold}G`,'reward');levelCheck();hud();save();setTimeout(createGoblin,700)}
 $('healBtn').addEventListener('pointerdown',()=>{initAudio();if(state.herbs<1||state.hp>=state.maxHp)return;state.herbs--;state.hp=Math.min(state.maxHp,state.hp+Math.round(state.maxHp*.55));toast('🌿 HP回復！');sfxHeal();hud();save()});
 $('reset').addEventListener('click',()=>{if(confirm('最初からやり直しますか？')){localStorage.removeItem(SAVE);location.reload()}});
-
 let audioCtx=null,musicOn=false,musicTimer=null;function initAudio(){if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume()}
 function tone(freq,dur=.12,type='sine',vol=.05,when=0){if(!audioCtx)return;const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=type;o.frequency.value=freq;g.gain.setValueAtTime(vol,audioCtx.currentTime+when);g.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+when+dur);o.connect(g).connect(audioCtx.destination);o.start(audioCtx.currentTime+when);o.stop(audioCtx.currentTime+when+dur)}
 function sfxSwing(){tone(180,.08,'sawtooth',.035);tone(120,.09,'triangle',.025,.04)}function sfxHit(){tone(85,.09,'square',.06);tone(55,.12,'triangle',.05,.03)}function sfxHeal(){tone(440,.12,'sine',.04);tone(660,.16,'sine',.035,.11)}function sfxLevel(){tone(523,.13,'square',.04);tone(659,.13,'square',.04,.13);tone(784,.2,'square',.04,.26)}function sfxHurt(){tone(90,.14,'sawtooth',.05)}
 const melody=[262,330,392,330,294,349,440,349,262,330,392,523,440,392,330,294];let note=0;function musicStep(){if(!musicOn||!audioCtx)return;tone(melody[note%melody.length],.24,'triangle',.018);if(note%4===0)tone(melody[note%melody.length]/2,.22,'sine',.012);note++;musicTimer=setTimeout(musicStep,300)}
 $('musicBtn').addEventListener('pointerdown',()=>{initAudio();musicOn=!musicOn;$('musicBtn').innerHTML='♪ 音楽<br>'+(musicOn?'ON':'OFF');if(musicOn){clearTimeout(musicTimer);musicStep()}else clearTimeout(musicTimer)});
-
 let clock=new THREE.Clock(),walkPhase=0;function resize(){const r=$('gameWrap').getBoundingClientRect();renderer.setSize(r.width,r.height,false);camera.aspect=r.width/r.height;camera.updateProjectionMatrix()}addEventListener('resize',resize);resize();
+function steerCurve(v){const a=Math.abs(v);if(a<.14)return 0;const n=(a-.14)/.86;return Math.sign(v)*Math.pow(n,1.45)}
 function animate(){requestAnimationFrame(animate);const dt=Math.min(.033,clock.getDelta());cool=Math.max(0,cool-dt);
-const deadzone=.14,jx=Math.abs(joy.x)<deadzone?0:joy.x,jy=Math.abs(joy.y)<deadzone?0:joy.y;const speed=2.7;targetVel.set(jx,0,jy).multiplyScalar(speed);moveVel.lerp(targetVel,1-Math.pow(.001,dt));player.position.addScaledVector(moveVel,dt);player.position.x=THREE.MathUtils.clamp(player.position.x,-31,31);player.position.z=THREE.MathUtils.clamp(player.position.z,-31,31);
-if(moveVel.lengthSq()>.03){const ang=Math.atan2(-moveVel.x,-moveVel.z);player.rotation.y=THREE.MathUtils.lerp(player.rotation.y,ang,1-Math.pow(.0005,dt));walkPhase+=dt*8;legL.rotation.x=Math.sin(walkPhase)*.45;legR.rotation.x=-Math.sin(walkPhase)*.45;armL.rotation.x=-Math.sin(walkPhase)*.3}else{legL.rotation.x*=.82;legR.rotation.x*=.82;armL.rotation.x*=.82}
-if(attacking){attackT-=dt;const p=1-attackT/.34;swordPivot.rotation.z=-.2-Math.sin(Math.min(1,p)*Math.PI)*2.0;swordPivot.rotation.x=-.25*Math.sin(p*Math.PI);if(p>.38)attackHit();if(attackT<=0){attacking=false;swordPivot.rotation.z=-.2;swordPivot.rotation.x=0}} 
+const forwardInput=-steerCurve(joy.y),turnInput=steerCurve(joy.x),speed=2.7,turnRate=1.65;player.rotation.y-=turnInput*turnRate*dt;let moving=Math.abs(forwardInput)>.001;if(moving){const f=new THREE.Vector3(0,0,-1).applyQuaternion(player.quaternion);player.position.addScaledVector(f,forwardInput*speed*dt)}player.position.x=THREE.MathUtils.clamp(player.position.x,-31,31);player.position.z=THREE.MathUtils.clamp(player.position.z,-31,31);
+if(moving){walkPhase+=dt*8*Math.max(.35,Math.abs(forwardInput));legL.rotation.x=Math.sin(walkPhase)*.45;legR.rotation.x=-Math.sin(walkPhase)*.45;armL.rotation.x=-Math.sin(walkPhase)*.3}else{legL.rotation.x*=.82;legR.rotation.x*=.82;armL.rotation.x*=.82}
+if(attacking){attackT-=dt;const p=1-attackT/.34;swordPivot.rotation.z=-.2-Math.sin(Math.min(1,p)*Math.PI)*2.0;swordPivot.rotation.x=-.25*Math.sin(p*Math.PI);if(p>.38)attackHit();if(attackT<=0){attacking=false;swordPivot.rotation.z=-.2;swordPivot.rotation.x=0}}
 let nearest=null,nd=999;for(const e of enemies){if(e.dead)continue;const to=player.position.clone().sub(e.group.position),d=to.length();if(d<nd){nd=d;nearest=e}e.hitCd=Math.max(0,e.hitCd-dt);if(e.flash>0){e.flash-=dt;e.group.scale.setScalar(1.08)}else e.group.scale.setScalar(1);if(e.knock.lengthSq()>.01){e.group.position.addScaledVector(e.knock,dt);e.knock.multiplyScalar(Math.pow(.03,dt))}if(d<7&&d>1.45&&e.wind<=0){to.normalize();e.group.position.addScaledVector(to,e.speed*dt);e.group.rotation.y=Math.atan2(to.x,to.z)+Math.PI}if(d<=1.55&&e.hitCd<=0&&e.wind<=0){e.wind=.34;e.hitCd=1.25}if(e.wind>0){e.wind-=dt;const p=1-e.wind/.34;e.clubPivot.rotation.z=-1.0*Math.sin(p*Math.PI);if(e.wind<=0){state.hp=Math.max(0,state.hp-Math.max(1,Math.round(e.atk*(.85+Math.random()*.3))));camShake=.18;floatText('-'+Math.round(e.atk),'hurt');sfxHurt();if(state.hp<=0){state.gold=Math.max(0,state.gold-Math.floor(state.gold*.15));state.hp=state.maxHp;player.position.set(0,0,0);toast('💀 倒れた…町で復活！')}hud();save()}}}
 if(nearest&&nd<6){$('enemyBar').style.display='block';$('enemyName').textContent='ゴブリン';$('enemyFill').style.width=Math.max(0,nearest.hp/nearest.maxHp*100)+'%'}else $('enemyBar').style.display='none';
 const back=new THREE.Vector3(0,4.2,6.7).applyQuaternion(player.quaternion),target=player.position.clone().add(back);camera.position.lerp(target,1-Math.pow(.0012,dt));if(camShake>0){camShake-=dt;camera.position.x+=(Math.random()-.5)*.12;camera.position.y+=(Math.random()-.5)*.08}camera.lookAt(player.position.x,1.15,player.position.z);renderer.render(scene,camera)}
